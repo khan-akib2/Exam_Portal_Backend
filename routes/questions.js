@@ -11,7 +11,10 @@ import { uploadImage } from "../lib/cloudinary.js";
 import { parsePdfToQuestions } from "../lib/pdfParser.js";
 
 const router = express.Router();
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 20 * 1024 * 1024 } // Enforce 20MB maximum file size limit
+});
 
 function escapeRegex(string) {
   return typeof string === "string"

@@ -308,9 +308,10 @@ router.patch("/users/:id", requireAuth(["super_admin", "admin"], "manage_users")
     await student.save();
 
     // Send email on password reset
+    let emailResult = { success: true };
     if (passwordResetSuccess) {
       const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-      await sendPasswordResetEmail({
+      emailResult = await sendPasswordResetEmail({
         name: student.name,
         email: student.email,
         password: newRawPassword,
@@ -323,14 +324,16 @@ router.patch("/users/:id", requireAuth(["super_admin", "admin"], "manage_users")
       user: adminUser._id,
       userEmail: adminUser.email,
       action: "STUDENT_UPDATED",
-      details: `Updated student ${student.name} (${student.email}): ${logDetails.join(", ")}.`,
+      details: `Updated student ${student.name} (${student.email}): ${logDetails.join(", ")}. Email sent: ${emailResult.success}`,
     });
 
     const studentObj = student.toObject();
     delete studentObj.password;
 
     return res.json({
-      message: "Student updated successfully.",
+      message: emailResult.success
+        ? "Student updated successfully."
+        : `Student updated successfully, but password reset email failed. NEW TEMPORARY PASSWORD: ${newRawPassword}. Error: ${emailResult.error || "Unknown error"}`,
       user: studentObj,
     });
   } catch (error) {

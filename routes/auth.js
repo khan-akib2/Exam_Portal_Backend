@@ -148,13 +148,16 @@ router.patch("/me", requireAuth(), async (req, res) => {
     }
 
     if (newPassword) {
-      if (!currentPassword) {
-        return res.status(400).json({ error: "Current password is required to change password." });
-      }
-      
-      const isMatch = await bcrypt.compare(currentPassword, userDoc.password);
-      if (!isMatch) {
-        return res.status(400).json({ error: "Incorrect current password." });
+      // If the user does not need a mandatory password reset, verify their current password first
+      if (!userDoc.needsPasswordReset) {
+        if (!currentPassword) {
+          return res.status(400).json({ error: "Current password is required to change password." });
+        }
+        
+        const isMatch = await bcrypt.compare(currentPassword, userDoc.password);
+        if (!isMatch) {
+          return res.status(400).json({ error: "Incorrect current password." });
+        }
       }
 
       if (newPassword.length < 6) {

@@ -82,7 +82,7 @@ router.post("/admins", requireAuth(["super_admin"]), async (req, res) => {
     return res.json({
       message: emailResult.success
         ? "Admin created successfully and welcome email sent."
-        : `Admin created successfully, but welcome email failed: ${emailResult.error || "Unknown error"}`,
+        : `Admin created successfully, but welcome email failed. TEMPORARY PASSWORD: ${rawPassword}. Error: ${emailResult.error || "Unknown error"}`,
       admin: adminObj,
       emailSent: emailResult.success,
       emailError: emailResult.error || null,
@@ -134,9 +134,10 @@ router.patch("/admins/:id", requireAuth(["super_admin"]), async (req, res) => {
     await admin.save();
 
     // Send email on password reset
+    let emailResult = { success: true };
     if (passwordResetSuccess) {
       const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-      await sendPasswordResetEmail({
+      emailResult = await sendPasswordResetEmail({
         name: admin.name,
         email: admin.email,
         password: newRawPassword,
@@ -149,14 +150,16 @@ router.patch("/admins/:id", requireAuth(["super_admin"]), async (req, res) => {
       user: superAdmin._id,
       userEmail: superAdmin.email,
       action: "SUBADMIN_UPDATED",
-      details: `Updated Sub-Admin ${admin.name} (${admin.email}): ${logDetails.join(", ")}.`,
+      details: `Updated Sub-Admin ${admin.name} (${admin.email}): ${logDetails.join(", ")}. Email sent: ${emailResult.success}`,
     });
 
     const adminObj = admin.toObject();
     delete adminObj.password;
 
     return res.json({
-      message: "Sub-Admin updated successfully.",
+      message: emailResult.success
+        ? "Sub-Admin updated successfully."
+        : `Sub-Admin updated successfully, but password reset email failed. NEW TEMPORARY PASSWORD: ${newRawPassword}. Error: ${emailResult.error || "Unknown error"}`,
       admin: adminObj,
     });
   } catch (error) {

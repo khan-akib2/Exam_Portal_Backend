@@ -85,6 +85,88 @@ router.post("/login", async (req, res) => {
   }
 });
 
+// POST: Register a new student user
+router.post("/register", async (req, res) => {
+  try {
+    await dbConnect();
+    const { name, email, password, phone } = req.body;
+
+    if (!name || !email || !password) {
+      return res.status(400).json({ error: "Name, email, and password are required." });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ error: "Password must be at least 6 characters long." });
+    }
+
+    // Check if email already exists
+    const existing = await User.findOne({ email: email.toLowerCase() });
+    if (existing) {
+      return res.status(400).json({ error: "Email is already in use." });
+    }
+
+    // Hash Password
+    const hashedPassword = await hashPassword(password);
+
+    // Create student user
+    const newUser = await User.create({
+      name,
+      email: email.toLowerCase(),
+      phone,
+      password: hashedPassword,
+      role: "student",
+      batch: "General",
+      status: "active",
+      xp: 0,
+      streak: 0,
+      level: "Intern",
+      achievements: [],
+      needsPasswordReset: false,
+    });
+
+    // Create Audit Log
+    await ActivityLog.create({
+      user: newUser._id,
+      userEmail: newUser.email,
+      action: "REGISTER",
+      details: `${newUser.name} registered successfully.`,
+    });
+
+    // Sign Token
+    const token = signToken(newUser);
+
+    // Set token cookie
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days (ms)
+      path: "/",
+    });
+
+    return res.status(201).json({
+      message: "Registration successful",
+      token,
+      user: {
+        id: newUser._id,
+        name: newUser.name,
+        email: newUser.email,
+        role: newUser.role,
+        permissions: newUser.permissions || [],
+        batch: newUser.batch,
+        xp: newUser.xp,
+        streak: newUser.streak,
+        level: newUser.level,
+        achievements: newUser.achievements,
+        needsPasswordReset: false,
+      },
+    });
+  } catch (error) {
+    console.error("Register API error:", error);
+    return res.status(500).json({ error: "An internal server error occurred." });
+  }
+});
+
+
 // GET: Get current session user
 router.get("/me", requireAuth(), async (req, res) => {
   try {

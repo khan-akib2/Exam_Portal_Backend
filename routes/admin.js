@@ -13,7 +13,7 @@ import { sendStudentWelcomeEmail, sendEmail, sendPasswordResetEmail } from "../l
 const router = express.Router();
 
 // GET: Gather dashboard stats
-router.get("/stats", requireAuth(["super_admin", "admin"]), async (req, res) => {
+router.get("/dashboard", requireAuth(["super_admin", "admin"]), async (req, res) => {
   try {
     await dbConnect();
 

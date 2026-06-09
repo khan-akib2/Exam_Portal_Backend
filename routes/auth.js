@@ -6,7 +6,6 @@ import Achievement from "../lib/models/Achievement.js";
 import SystemSetting from "../lib/models/SystemSetting.js";
 import ActivityLog from "../lib/models/ActivityLog.js";
 import { comparePassword, signToken, hashPassword, requireAuth } from "../lib/auth.js";
-import { seedDatabase } from "../lib/seeder.js";
 import bcrypt from "bcryptjs";
 
 const router = express.Router();
@@ -202,27 +201,6 @@ router.patch("/me", requireAuth(), async (req, res) => {
   } catch (error) {
     console.error("PATCH Auth Me error:", error);
     return res.status(500).json({ error: "Server error: " + error.message });
-  }
-});
-
-// GET: Seeding database (Secured)
-router.get("/seed", async (req, res) => {
-  try {
-    const { secret } = req.query;
-    if (!secret || secret !== (process.env.JWT_SECRET || "Exam-Portal-Russia-2026")) {
-      return res.status(403).json({ error: "FORBIDDEN: Invalid seed secret key." });
-    }
-
-    await dbConnect();
-    await seedDatabase();
-
-    return res.json({
-      message: "Database seeded successfully.",
-      note: "Default administrative credentials have been provisioned.",
-    });
-  } catch (err) {
-    console.error("Seeding failed:", err);
-    return res.status(500).json({ error: "Seeding failed: " + err.message });
   }
 });
 

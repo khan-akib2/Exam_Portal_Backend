@@ -36,7 +36,7 @@ router.get("/", requireAuth(["super_admin", "admin"], "manage_questions"), async
       query.question = { $regex: cleanSearch, $options: "i" };
     }
 
-    const questions = await Question.find(query).sort({ createdAt: -1 });
+    const questions = await Question.find(query).select('-image').sort({ createdAt: -1 });
     return res.json({ questions });
   } catch (error) {
     console.error("GET questions error:", error);
@@ -166,7 +166,7 @@ router.get("/drafts", requireAuth(["super_admin", "admin"], "manage_questions"),
     if (pdfName) query.pdfName = pdfName;
     if (status) query.status = status;
 
-    const drafts = await DraftQuestion.find(query).sort({ createdAt: -1 });
+    const drafts = await DraftQuestion.find(query).select('-image').sort({ createdAt: -1 });
     const pdfNames = await DraftQuestion.distinct("pdfName");
 
     return res.json({ drafts, pdfNames });
@@ -471,8 +471,8 @@ router.post("/drafts/learn-pattern", requireAuth(["super_admin", "admin"], "mana
     }
 
     if (!learnedPattern) {
-      learnedPattern = "highlight_option"; 
-      console.warn("Could not find unique pattern, defaulting to highlight_option.");
+      learnedPattern = "mixed_formats"; 
+      console.warn("Could not find unique pattern, defaulting to mixed_formats.");
     }
 
     // Save template
@@ -500,13 +500,20 @@ router.post("/drafts/learn-pattern", requireAuth(["super_admin", "admin"], "mana
       options.forEach((optText, idx) => {
         const optMeta = metadata[idx] || {};
         let isMatch = false;
-        if (learnedPattern === "highlight_option" && optMeta.isHighlighted) isMatch = true;
-        if (learnedPattern === "bold_option" && optMeta.isBold) isMatch = true;
-        if (learnedPattern === "underline_option" && optMeta.isUnderlined) isMatch = true;
-        if (learnedPattern === "colored_option" && optMeta.isColored) isMatch = true;
-        if (learnedPattern === "plus_symbol" && /\(\+\)|\[\+\]|\+/.test(optText)) isMatch = true;
-        if (learnedPattern === "checkmark_symbol" && /✓|✔/.test(optText)) isMatch = true;
-        if (learnedPattern === "asterisk_symbol" && /\*/.test(optText)) isMatch = true;
+        if (learnedPattern === "mixed_formats") {
+          if (optMeta.isHighlighted || optMeta.isBold || optMeta.isUnderlined || optMeta.isColored || 
+              /\(\+\)|\[\+\]|\+/.test(optText) || /✓|✔/.test(optText) || /\*/.test(optText)) {
+            isMatch = true;
+          }
+        } else {
+          if (learnedPattern === "highlight_option" && optMeta.isHighlighted) isMatch = true;
+          if (learnedPattern === "bold_option" && optMeta.isBold) isMatch = true;
+          if (learnedPattern === "underline_option" && optMeta.isUnderlined) isMatch = true;
+          if (learnedPattern === "colored_option" && optMeta.isColored) isMatch = true;
+          if (learnedPattern === "plus_symbol" && /\(\+\)|\[\+\]|\+/.test(optText)) isMatch = true;
+          if (learnedPattern === "checkmark_symbol" && /✓|✔/.test(optText)) isMatch = true;
+          if (learnedPattern === "asterisk_symbol" && /\*/.test(optText)) isMatch = true;
+        }
 
         if (isMatch) {
           matchedIndex = idx;
@@ -656,28 +663,31 @@ router.post("/upload-pdf", requireAuth(["super_admin", "admin"], "manage_questio
         }
       });
 
-      const consensusCount = Math.ceil(extractedQuestions.length * 0.8);
-      let consensusPattern = null;
+      const uniquePatternsCount = Object.keys(patternsCount).length;
+      let finalPattern = null;
 
-      Object.entries(patternsCount).forEach(([pat, count]) => {
-        if (count >= consensusCount) {
-          consensusPattern = pat;
-        }
-      });
+      if (uniquePatternsCount > 1) {
+        finalPattern = "mixed_formats";
+      } else if (uniquePatternsCount === 1) {
+        finalPattern = Object.keys(patternsCount)[0];
+      }
 
-      if (consensusPattern) {
-        console.log(`Consensus auto-detected pattern: "${consensusPattern}" across ${patternsCount[consensusPattern]} questions.`);
-        const dummyTemplate = { answerPattern: consensusPattern };
-        const reParseResult = await parsePdfToQuestions(pdfBuffer, file.originalname, dummyTemplate, answersBuffer);
-        extractedQuestions = reParseResult.questions || [];
-        skippedCount = reParseResult.skippedCount || 0;
+      if (finalPattern) {
+        console.log(`Auto-detected pattern: "${finalPattern}"`);
         
-        const existingT = await ExtractionTemplate.findOne({ answerPattern: consensusPattern });
+        if (finalPattern !== "mixed_formats") {
+          const dummyTemplate = { answerPattern: finalPattern };
+          const reParseResult = await parsePdfToQuestions(pdfBuffer, file.originalname, dummyTemplate, answersBuffer);
+          extractedQuestions = reParseResult.questions || [];
+          skippedCount = reParseResult.skippedCount || 0;
+        }
+
+        const existingT = await ExtractionTemplate.findOne({ answerPattern: finalPattern });
         if (!existingT) {
           try {
             await ExtractionTemplate.create({
-              templateName: `Auto-Learned Template ${consensusPattern.toUpperCase()}`,
-              answerPattern: consensusPattern,
+              templateName: `Auto-Learned Template ${finalPattern.toUpperCase()}`,
+              answerPattern: finalPattern,
               matchingKeywords: [file.originalname.replace(/\.[^/.]+$/, "")]
             });
           } catch (e) {

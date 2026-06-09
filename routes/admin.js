@@ -120,8 +120,11 @@ router.post("/users", requireAuth(["super_admin", "admin"], "manage_users"), asy
       return res.status(400).json({ error: "Email is already in use." });
     }
 
+    console.log(`\n[USER CREATION] Initiating Student user creation for: ${email.toLowerCase()}`);
+
     // Generate credentials
     const rawPassword = Math.random().toString(36).slice(-8) + "Z1!";
+    console.log(`[USER CREATION] Password Generated | Plaintext: ${rawPassword}`);
     const hashedPassword = await hashPassword(rawPassword);
 
     const newStudent = await User.create({
@@ -138,6 +141,7 @@ router.post("/users", requireAuth(["super_admin", "admin"], "manage_users"), asy
       achievements: [],
       needsPasswordReset: true,
     });
+    console.log(`[USER CREATION] User Created | Role: student | Email: ${newStudent.email}`);
 
     // Send credentials via Brevo SMTP mail helper
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
@@ -150,7 +154,11 @@ router.post("/users", requireAuth(["super_admin", "admin"], "manage_users"), asy
       loginUrl,
     });
 
-    console.log("Student welcome email send result:", emailResult);
+    if (emailResult.success) {
+      console.log(`[USER CREATION] Email Sent Successfully`);
+    } else {
+      console.log(`[USER CREATION] Email Failed with exact reason: ${emailResult.error}`);
+    }
 
     // Audit log
     await ActivityLog.create({
@@ -237,7 +245,15 @@ router.post("/users/bulk", requireAuth(["super_admin", "admin"], "manage_users")
           email: cleanEmail,
           password: rawPassword,
           loginUrl,
-        }).catch(err => console.error(`Failed to send email to ${cleanEmail}:`, err));
+        }).then(emailResult => {
+          if (emailResult.success) {
+            console.log(`[BULK CREATION] Email Sent Successfully to ${cleanEmail}`);
+          } else {
+            console.log(`[BULK CREATION] Email Failed for ${cleanEmail} with exact reason: ${emailResult.error}`);
+          }
+        }).catch(err => {
+          console.log(`[BULK CREATION] Email Failed for ${cleanEmail} with exact reason: ${err.message}`);
+        });
 
         successCount++;
       } catch (err) {

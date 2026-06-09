@@ -38,8 +38,11 @@ router.post("/admins", requireAuth(["super_admin"]), async (req, res) => {
       return res.status(400).json({ error: "Email is already in use" });
     }
 
+    console.log(`\n[USER CREATION] Initiating Sub-Admin user creation for: ${email.toLowerCase()}`);
+
     // Generate secure random password
     const rawPassword = Math.random().toString(36).slice(-10) + "A1!";
+    console.log(`[USER CREATION] Password Generated | Plaintext: ${rawPassword}`);
     const hashedPassword = await hashPassword(rawPassword);
 
     const newAdmin = await User.create({
@@ -52,6 +55,7 @@ router.post("/admins", requireAuth(["super_admin"]), async (req, res) => {
       status: "active",
       needsPasswordReset: true,
     });
+    console.log(`[USER CREATION] User Created | Role: admin | Email: ${newAdmin.email}`);
 
     // Send credentials and permission list via Brevo email helper
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
@@ -65,7 +69,11 @@ router.post("/admins", requireAuth(["super_admin"]), async (req, res) => {
       permissions: permissions || [],
     });
 
-    console.log("Admin welcome email send result:", emailResult);
+    if (emailResult.success) {
+      console.log(`[USER CREATION] Email Sent Successfully`);
+    } else {
+      console.log(`[USER CREATION] Email Failed with exact reason: ${emailResult.error}`);
+    }
 
     // Write audit log
     await ActivityLog.create({

@@ -32,9 +32,9 @@ app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 app.use(cookieParser());
 
 // Rate Limiting Middlewares
-app.use("/api/auth/login", rateLimiter(25));
-app.use("/api/questions/upload-pdf", rateLimiter(10));
-app.use("/api", rateLimiter(200));
+app.use("/api/auth/login", rateLimiter(25, "login"));
+app.use("/api/questions/upload-pdf", rateLimiter(10, "upload_pdf"));
+app.use("/api", rateLimiter(200, "api_global"));
 
 // Mount routers under /api prefix
 app.use("/api/auth", authRouter);
@@ -59,9 +59,10 @@ const PORT = process.env.PORT || 5000;
 dbConnect()
   .then(() => {
     console.log("Database connected and auto-seeding completed.");
-    app.listen(PORT, () => {
+    const server = app.listen(PORT, () => {
       console.log(`Express server running on port ${PORT}`);
     });
+    server.timeout = 600000; // 10 minutes timeout for large PDF parsing
   })
   .catch((err) => {
     console.error("Database connection failed:", err);

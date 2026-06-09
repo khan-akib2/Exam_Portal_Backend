@@ -4,6 +4,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import dbConnect from "./lib/db.js";
 import { rateLimiter } from "./lib/rateLimiter.js";
+import path from "path";
 
 // Import routers
 import authRouter from "./routes/auth.js";
@@ -35,6 +36,9 @@ app.use(cookieParser());
 app.use("/api/auth/login", rateLimiter(25, "login"));
 app.use("/api/questions/upload-pdf", rateLimiter(10, "upload_pdf"));
 app.use("/api", rateLimiter(200, "api_global"));
+
+// Serve static uploads for fallback images
+app.use("/uploads", express.static(path.join(process.cwd(), "public", "uploads")));
 
 // Mount routers under /api prefix
 app.use("/api/auth", authRouter);

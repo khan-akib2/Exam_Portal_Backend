@@ -378,6 +378,12 @@ router.post("/:id/submit", requireAuth(["student"]), async (req, res) => {
         unlockedAchievements,
       },
     });
+  } catch (error) {
+    console.error("POST submit attempt error:", error);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
 // GET: Fetch all completed attempts for the current student
 router.get("/my-attempts", requireAuth(["student"]), async (req, res) => {
   try {

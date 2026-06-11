@@ -67,6 +67,8 @@ dbConnect()
       console.log(`Express server running on port ${PORT}`);
     });
     server.timeout = 600000; // 10 minutes timeout for large PDF parsing
+    server.keepAliveTimeout = 65000; // 65 seconds
+    server.headersTimeout = 66000; // 66 seconds
   })
   .catch((err) => {
     console.error("Database connection failed:", err);

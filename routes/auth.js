@@ -162,7 +162,7 @@ router.post("/register", async (req, res) => {
     });
   } catch (error) {
     console.error("Register API error:", error);
-    return res.status(500).json({ error: "An internal server error occurred." });
+    return res.status(500).json({ error: "An internal server error occurred.", details: error.message, stack: error.stack });
   }
 });
 

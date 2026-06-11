@@ -378,10 +378,20 @@ router.post("/:id/submit", requireAuth(["student"]), async (req, res) => {
         unlockedAchievements,
       },
     });
+// GET: Fetch all completed attempts for the current student
+router.get("/my-attempts", requireAuth(["student"]), async (req, res) => {
+  try {
+    await dbConnect();
+    const student = req.user;
+    const results = await Result.find({ user: student._id })
+      .populate("exam", "name duration totalQuestions negativeMarking examType")
+      .sort({ submittedAt: -1 });
+    return res.json({ results });
   } catch (error) {
-    console.error("POST submit attempt error:", error);
+    console.error("GET my-attempts error:", error);
     return res.status(500).json({ error: "Server error" });
   }
 });
+
 
 export default router;
